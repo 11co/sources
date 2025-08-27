@@ -5,9 +5,9 @@
 #include <FrameWork/FrameWork.hpp>
 #include <tchar.h>
 #include "xor.hpp"
-#include "../Fivem-External/Auth/auth.hpp"
 #include "../Fivem-External/FrameWork/Render/Interface.hpp"
-#include <iostream> // Add iostream for printing output
+#include <iostream>
+#include <wininet.h>
 
 static BOOL CheckForUIAccess(DWORD* pdwErr, BOOL* pfUIAccess)
 {
@@ -49,14 +49,49 @@ DWORD WINAPI Unload()
     return TRUE;
 }
 
+bool CheckLicense(const std::string& key)
+{
+    HINTERNET hInternet = InternetOpenA("AuthCheck", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet) return false;
+
+    std::string url = "http://porna.shop/check.php?key=" + key;
+    HINTERNET hFile = InternetOpenUrlA(hInternet, url.c_str(), NULL, 0, INTERNET_FLAG_RELOAD, 0);
+    if (!hFile) {
+        InternetCloseHandle(hInternet);
+        return false;
+    }
+
+    char buffer[512] = { 0 };
+    DWORD bytesRead = 0;
+    InternetReadFile(hFile, buffer, sizeof(buffer) - 1, &bytesRead);
+    InternetCloseHandle(hFile);
+    InternetCloseHandle(hInternet);
+
+    std::string response(buffer);
+    if (response.find("Auth Successful") != std::string::npos) {
+        std::cout << "[INFO] License verified successfully!" << std::endl;
+        return true;
+    }
+
+    std::cerr << "[ERROR] License verification failed!" << std::endl;
+    return false;
+}
+
 int main()
 {
     SetConsoleTitleA(("VacBan"));
     std::string licensekey;
 
     std::cout << "[INFO] Starting VacBan Console..." << std::endl;
+    std::cout << "[INPUT] Enter your license key: ";
+    std::cin >> licensekey;
 
-    std::cout << "[INFO] Sucess authentication, Injeting in moments..." << std::endl;
+    if (!CheckLicense(licensekey)) {
+        std::cout << "[ERROR] Invalid license key. Exiting..." << std::endl;
+        return 0; // Program kapanır
+    }
+
+    std::cout << "[INFO] Success authentication, Injecting in moments..." << std::endl;
 
     std::cout << "[INFO] Wait for your game to close by itself" << std::endl;
 
